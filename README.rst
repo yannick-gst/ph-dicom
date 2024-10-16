@@ -11,7 +11,7 @@ DICOM is a standard that is used for the digital storage and transmission of med
 
 API Endpoints
 =============
-The proposed endpoints follow.
+The proposed endpoints follow, with examples of possible outputs.
 
 Upload a DICOM file
 -------------------
@@ -22,6 +22,8 @@ POST /upload ::
         "file": path of the file to upload
     }
 
+Assumption: given it's an internal microservice, the server will know of the file path at the time of the request.
+
 Response ::
 
     200 OK
@@ -30,45 +32,48 @@ Response ::
         "fileID" : "1234"
     }
 
+Assumption: it's okay to return the fileID as a string.
+
     400 Bad Request
-    Content-Type: application/json
-    {
-        "Message": "File missing or not valid"
-    }
+    Message: "File missing or not valid"
 
 
 Retrieve a header attribute by tag
 ----------------------------------
-GET /fileID/attributes?tag=tag ::
+GET /file/fileID/attributes?tagGroup=group&tagElement=element ::
 
     200 OK
     Content-Type: application/json
-    {
-        "Tag": tag,
-        "Value Representation": VR
-    }
+    Response returned verbatim from dicom
 
-GET /fileID/attributes?tag=tag ::
+GET /file/fileID/attributes?tagGroup=group&tagElement=element ::
 
     404 Not Found
 
-GET /fileID/attributes?tag=tag ::
+GET /file/fileID/attributes?tagGroup=group&tagElement=element ::
 
     400 Bad Request
-    Content-Type: application/json
-    {
-        "Message": "Incorrect or malformed tag"
-    }
+    Message: "Incorrect or malformed tag"
 
 
 Convert the DICOM file into a PNG file
 --------------------------------------
-GET /fileID/png ::
+GET /file/fileID/png ::
 
     200 OK
     Content-Type: image/png
     Binary representation of the PNG file
 
-GET /fileID/png ::
+GET /file/fileID/png ::
     
     404 Not Found
+
+
+Future improvements
+===================
+In the interest of submitting a solution as quickly as possible, I did not implement the PNG conversion part.
+This should be added in the future.
+
+The retrieving by attribute endpoint does not currently define an actual representation of the attributes.
+
+There are no failure test cases as of now. Those would be needed for more robust testing.

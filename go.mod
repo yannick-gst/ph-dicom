@@ -1,6 +1,6 @@
 module phdicom
 
-go 1.18
+go 1.23
 
 require github.com/suyashkumar/dicom v1.0.7
 

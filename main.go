@@ -8,10 +8,12 @@ import (
     "net/http"
     "os"
     "path/filepath"
+    "strconv"
     "strings"
 
 	"github.com/google/uuid"
     "github.com/suyashkumar/dicom"
+    "github.com/suyashkumar/dicom/pkg/tag"
 )
 
 var destinationDir string
@@ -98,7 +100,6 @@ func fileUploadHandler(w http.ResponseWriter, req *http.Request) {
     defer dst.Close()
 
     // Copy the uploaded file data to the destination file
-    //datasetJSON, err := json.Marshal(dataset)
     if err := os.WriteFile(filePath, fileContents, 0444); err != nil {
         http.Error(w, err.Error(), http.StatusInternalServerError)
         return
@@ -110,10 +111,67 @@ func fileUploadHandler(w http.ResponseWriter, req *http.Request) {
     json.NewEncoder(w).Encode(map[string]string{"fileID": fileID})
 }
 
+func attributesHandler(w http.ResponseWriter, req *http.Request) {
+    if req.Method != "GET" {
+        http.Error(w, "Expected GET method", http.StatusBadRequest)
+        return
+    }
+
+    err := checkContentType("application/json", req)
+    if err != nil {
+        http.Error(w, err.Error(), http.StatusUnsupportedMediaType)
+        return
+    }
+
+    // Ensure the requested file exists and is a valid dataset
+    parts := strings.Split(req.URL.Path, "/")
+    fileID := parts[2]
+    if fileID == "" {
+        http.Error(w, "File ID is missing", http.StatusBadRequest)
+        return
+    }
+
+	filePath := filepath.Join(destinationDir, fileID)
+    if _, err := os.Stat(filePath); errors.Is(err, os.ErrNotExist) {
+        http.Error(w, "File ID does not exist", http.StatusBadRequest)
+        return
+    }
+
+    dataset, err := dicom.ParseFile(filePath, nil)
+    if err != nil {
+        http.Error(w, "A valid DICOM dataset is expected", http.StatusBadRequest)
+        return
+    }
+
+    // Verify the tag requested
+    tagGroup, err := strconv.ParseUint(req.URL.Query().Get("tagGroup"), 16, 16)
+    if err != nil {
+        http.Error(w, "Expected a valid tag group query parameter", http.StatusBadRequest)
+        return
+    }
+    tagElement, err := strconv.ParseUint(req.URL.Query().Get("tagElement"), 16, 16)
+    if err != nil {
+        http.Error(w, "Expected a valid tag element query parameter", http.StatusBadRequest)
+        return
+    }
+
+    // Lookup the element
+    tag := tag.Tag{uint16(tagGroup), uint16(tagElement)}
+    element, err := dataset.FindElementByTag(tag)
+    if err != nil {
+        http.Error(w, "The element could not be found", http.StatusNotFound)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusOK)
+    json.NewEncoder(w).Encode(element)
+}
+
 func main() {
     http.HandleFunc("/upload", fileUploadHandler)
-    /*http.HandleFunc("/fileID/attributes", attributesHandler)
-    http.HandleFunc("/fileID/png", pngHandler)*/
+    http.HandleFunc("/file/fileID/attributes", attributesHandler)
+    //http.HandleFunc("/file/fileID/png", pngHandler)
     _, err := createDestinationDir()
     if err != nil {
         log.Fatal(err.Error())
