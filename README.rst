@@ -68,6 +68,9 @@ GET /file/fileID/png ::
     
     404 Not Found
 
+Building and running
+====================
+To build, run `go build`. To test, run `go test`
 
 Future improvements
 ===================
